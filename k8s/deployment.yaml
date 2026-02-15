@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pix-pay
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pix-pay
+  template:
+    metadata:
+      labels:
+        app: pix-pay
+    spec:
+      containers:
+      - name: pix-pay
+        image: pix-pay:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MONGO_URI
+          value: "mongodb://mongo-service:27017/pixpay"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: pix-secrets
+              key: jwt-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pix-pay-service
+spec:
+  selector:
+    app: pix-pay
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pix-secrets
+type: Opaque
+data:
+  jwt-secret: c3VwZXJfc2VjcmV0X2p3dF9rZXlfMTIzNDU=  # Base64 encoded
