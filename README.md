@@ -8,6 +8,10 @@ A repo for integrating Pi Network's Pi Coin with Twitter (X) APIs, focusing on w
 [![JWT](https://img.shields.io/badge/JWT-9.0+-000000?style=flat-square&logo=json-web-tokens)](https://jwt.io/)
 [![Passport](https://img.shields.io/badge/Passport-0.6+-34E27A?style=flat-square&logo=passport)](http://www.passportjs.org/)
 
+[![Twitter API (X)](https://img.shields.io/badge/Twitter%20API%20(X)-v2-1DA1F2?style=flat-square&logo=twitter)](https://developer.twitter.com/)
+[![Pi Network](https://img.shields.io/badge/Pi%20Network-Beta-F7931A?style=flat-square&logo=pi-network)](https://minepi.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-API-412991?style=flat-square&logo=openai)](https://openai.com/)
+
 # PiX-Pay-Integration
 
 ## Description
