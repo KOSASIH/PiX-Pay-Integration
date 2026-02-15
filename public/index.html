@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PiX Pay - Super Advanced Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
+    .container { max-width: 1200px; margin: auto; }
+    .section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    button { padding: 10px 15px; background: #1da1f2; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0d95e8; }
+    input, select { padding: 8px; margin: 5px; width: 200px; }
+    #notifications { position: fixed; top: 10px; right: 10px; width: 300px; background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; display: none; }
+    .hidden { display: none; }
+    .balance { font-size: 24px; color: #4caf50; }
+    .transaction { margin: 10px 0; padding: 10px; border-bottom: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PiX Pay Dashboard</h1>
+    <div id="notifications"></div>
+
+    <!-- Auth Section -->
+    <div id="auth" class="section">
+      <h2>Authentication</h2>
+      <button onclick="loginWithX()">Login with X (Twitter)</button>
+      <form id="registerForm" class="hidden">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Register</button>
+      </form>
+      <form id="loginForm" class="hidden">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+      <button onclick="toggleForms()">Switch to Manual Auth</button>
+    </div>
+
+    <!-- Dashboard (Hidden until logged in) -->
+    <div id="dashboard" class="section hidden">
+      <h2>Welcome, <span id="userName"></span></h2>
+      <div class="balance">Pi Balance: <span id="balance">0</span></div>
+      <button onclick="minePi()">Mine Pi</button>
+      <button onclick="getAIReport()">Get AI Report</button>
+    </div>
+
+    <!-- Wallet Linking -->
+    <div id="wallet" class="section hidden">
+      <h2>Link Wallets</h2>
+      <input type="text" id="piUserId" placeholder="Pi User ID" required>
+      <input type="text" id="xUserId" placeholder="X User ID" required>
+      <button onclick="linkWallets()">Link Accounts</button>
+    </div>
+
+    <!-- Payments -->
+    <div id="payments" class="section hidden">
+      <h2>Send Tip</h2>
+      <input type="text" id="toUserId" placeholder="Recipient User ID" required>
+      <input type="number" id="amount" placeholder="Amount (Pi)" step="0.01" required>
+      <input type="text" id="tweetId" placeholder="Tweet ID (optional)">
+      <button onclick="getSuggestion()">AI Suggest Amount</button>
+      <span id="suggestion"></span>
+      <button onclick="sendTip()">Send Tip</button>
+      <h3>Transaction History</h3>
+      <div id="history"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+  <script>
+    const socket = io('http://localhost:3000');
+    let token = localStorage.getItem('token');
+    let userId;
+
+    // DOM Elements
+    const authDiv = document.getElementById('auth');
+    const dashboardDiv = document.getElementById('dashboard');
+    const walletDiv = document.getElementById('wallet');
+    const paymentsDiv = document.getElementById('payments');
+    const notifications = document.getElementById('notifications');
+    const balanceSpan = document.getElementById('balance');
+    const userNameSpan = document.getElementById('userName');
+    const historyDiv = document.getElementById('history');
+    const suggestionSpan = document.getElementById('suggestion');
+
+    // Initialize
+    if (token) {
+      showDashboard();
+      loadUserData();
+    }
+
+    // Auth Functions
+    function loginWithX() {
+      window.location.href = 'http://localhost:3000/auth/x';
+    }
+
+    function toggleForms() {
+      document.getElementById('registerForm').classList.toggle('hidden');
+      document.getElementById('loginForm').classList.toggle('hidden');
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Registered successfully! Please login.');
+        toggleForms();
+      } else {
+        showNotification(data.error, 'error');
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('loginEmail').value,
+          password: document.getElementById('loginPassword').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token;
+        localStorage.setItem('token', token);
+        userId = data.user.id;
+        showDashboard();
+        loadUserData();
+      } else {
+        showNotification(data.error, 'error');
+      }
+    });
+
+    // Dashboard Functions
+    function showDashboard() {
+      authDiv.classList.add('hidden');
+      dashboardDiv.classList.remove('hidden');
+      walletDiv.classList.remove('hidden');
+      paymentsDiv.classList.remove('hidden');
+      socket.emit('join', userId);
+    }
+
+    async function loadUserData() {
+      const res = await fetch('/wallet/balance', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        balanceSpan.textContent = data.balance;
+        userNameSpan.textContent = 'User'; // Fetch from profile if needed
+      }
+    }
+
+    async function minePi() {
+      const res = await fetch('/wallet/mine', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification(`Mined ${data.reward} Pi!`);
+        loadUserData();
+      } else {
+        showNotification(data.error, 'error');
+      }
+    }
+
+    async function getAIReport() {
+      const res = await fetch('/payments/report', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification(data.report);
+      } else {
+        showNotification(data.error, 'error');
+      }
+    }
+
+    // Wallet Functions
+    async function linkWallets() {
+      const res = await fetch('/wallet/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          piUserId: document.getElementById('piUserId').value,
+          xUserId: document.getElementById('xUserId').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Wallets linked!');
+      } else {
+        showNotification(data.error, 'error');
+      }
+    }
+
+    // Payment Functions
+    async function getSuggestion() {
+      const tweetContent = 'Sample tweet content'; // In real app, fetch from X API
+      const res = await fetch('/payments/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userData: {}, tweetContent })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        suggestionSpan.textContent = `Suggested: ${data.suggestion} Pi`;
+      }
+    }
+
+    async function sendTip() {
+      const res = await fetch('/payments/tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          toUserId: document.getElementById('toUserId').value,
+          amount: parseFloat(document.getElementById('amount').value),
+          tweetId: document.getElementById('tweetId').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Tip sent!');
+        loadHistory();
+        loadUserData();
+      } else {
+        showNotification(data.error, 'error');
+      }
+    }
+
+    async function loadHistory() {
+      const res = await fetch('/payments/history', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        historyDiv.innerHTML = data.map(tx => `<div class="transaction">${tx.amount} Pi to ${tx.toUser.username} - ${tx.status}</div>`).join('');
+      }
+    }
+
+    // Real-time Notifications
+    socket.on('tipReceived', (data) => {
+      showNotification(`You received a tip: ${data.amount} Pi!`);
+      loadUserData();
+    });
+
+    // Utility
+    function showNotification(message, type = 'success') {
+      notifications.textContent = message;
+      notifications.style.display = 'block';
+      notifications.style.background = type === 'error' ? '#ffebee' : '#e8f5e8';
+      setTimeout(() => notifications.style.display = 'none', 5000);
+    }
+
+    // Load history on page load if logged in
+    if (token) loadHistory();
+  </script>
+</body>
+</html>
