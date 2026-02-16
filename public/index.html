@@ -141,6 +141,38 @@
         <div id="dynamicPrice"></div>
       </div>
     </div>
+
+    <!-- Pi Regulation Dashboard -->
+    <div id="pi-regulation" class="section hidden">
+      <h2>Pi Coin Regulation Dashboard</h2>
+      <p>Autonomous AI regulates Pi as a stablecoin at 1 PI = $314,159 for mined, reward, and P2P origins only. Exchanges and unclear sources are rejected.</p>
+      <button onclick="getInsights()">Get AI Insights</button>
+      <div id="insights"></div>
+      <button onclick="startMonitoring()">Start Real-Time Monitoring</button>
+      <div id="monitoringStatus">Monitoring: Off</div>
+      <div id="adminControls" class="hidden">
+        <input type="text" id="flagHash" placeholder="Hash to flag/unflag">
+        <button onclick="flagSource(true)">Flag Source</button>
+        <button onclick="flagSource(false)">Unflag Source</button>
+      </div>
+    </div>
+
+    <!-- Pi Verification Section -->
+    <div id="pi-verification" class="section hidden">
+      <h2>Pi Coin Verification & Stablecoin Regulation</h2>
+      <p>Pi Coin (PI) is regulated as a stablecoin at a fixed value of $314,159 for mined, reward, and P2P origins only.</p>
+      <input type="text" id="piId" placeholder="Pi Coin ID" required>
+      <select id="origin">
+        <option value="mined">Mined</option>
+        <option value="reward">Reward</option>
+        <option value="p2p">P2P</option>
+        <option value="exchange">Exchange (will be rejected)</option>
+      </select>
+      <button onclick="verifyPi()">Verify Pi Coin</button>
+      <div id="verificationResult"></div>
+      <button onclick="getStableValue()">Get Stable Value</button>
+      <div id="stableValue"></div>
+    </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
@@ -160,6 +192,8 @@
     const walletDiv = document.getElementById('wallet');
     const paymentsDiv = document.getElementById('payments');
     const aiFeaturesDiv = document.getElementById('ai-features');
+    const piRegulationDiv = document.getElementById('pi-regulation');
+    const piVerificationDiv = document.getElementById('pi-verification');
     const notifications = document.getElementById('notifications');
     const balanceSpan = document.getElementById('balance');
     const userNameSpan = document.getElementById('userName');
@@ -252,7 +286,12 @@
       walletDiv.classList.remove('hidden');
       paymentsDiv.classList.remove('hidden');
       aiFeaturesDiv.classList.remove('hidden');
-      if (isAdmin) adminPanel.classList.remove('hidden');
+      piRegulationDiv.classList.remove('hidden');
+      piVerificationDiv.classList.remove('hidden');
+      if (isAdmin) {
+        adminPanel.classList.remove('hidden');
+        document.getElementById('adminControls').classList.remove('hidden');
+      }
       socket.emit('join', userId);
     }
 
@@ -310,62 +349,4 @@
       const txData = await txRes.json();
       new Chart(document.getElementById('transactionChart'), {
         type: 'bar',
-        data: { labels: txData.labels || ['Tx1', 'Tx2', 'Tx3'], datasets: [{ label: 'Transactions', data: txData.values || [1, 2, 3], backgroundColor: '#4caf50' }] }
-      });
-    }
-
-    // 2FA
-    async function setup2FA() {
-      const res = await fetch('/auth/setup-2fa', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (res.ok) {
-        document.getElementById('qrCode').innerHTML = `<img src="${data.qrCodeUrl}" alt="QR Code">`;
-      } else {
-        showNotification(data.error, 'error');
-      }
-    }
-
-    // Wallet Functions
-    async function linkWallets() {
-      const res = await fetch('/wallet/link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          piUserId: document.getElementById('piUserId').value,
-          xUserId: document.getElementById('xUserId').value
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showNotification('Wallets linked!');
-      } else {
-        showNotification(data.error, 'error');
-      }
-    }
-
-    // Payment Functions
-    async function getSuggestion() {
-      const tweetContent = 'Sample tweet content';
-      const res = await fetch('/payments/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userData: {}, tweetContent })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        suggestionSpan.textContent = `Suggested: ${data.suggestion} Pi`;
-      } else {
-        showNotification('Suggestion failed', 'error');
-      }
-    }
-
-    async function sendTip() {
-      const res = await fetch('/payments/tip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          toUserId: document.getElementById('toUserId').value,
-          amount: parseFloat(document.getElementById('amount').value),
-          tweetId: document.getElementById('tweetId').value
-        })
-     
+        data: { labels: txData.labels || ['Tx1', 'Tx2', 'Tx3'], datasets: [{ label
