@@ -21,6 +21,7 @@ const NLPEngine = require('./ai/nlp-engine');
 const Chatbot = require('./ai/chatbot');
 const MarketPredictor = require('./ai/market-predictor');
 const DynamicPricing = require('./ai/dynamic-pricing');
+const PiVerifier = require('./ai/pi-verifier');
 const aiRoutes = require('./routes/ai');
 
 const authRoutes = require('./routes/auth');
@@ -41,19 +42,21 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: config.corsOrigin } });
 
-// Initialize Advanced AI Engines
+// Initialize Advanced AI Engines including PiVerifier
 const aiEngine = new AdvancedAIEngine();
 const nlpEngine = new NLPEngine();
 const chatbot = new Chatbot();
 const marketPredictor = new MarketPredictor();
 const dynamicPricing = new DynamicPricing();
+const piVerifier = new PiVerifier();  // New: Autonomous Pi Coin regulator
 
-// Train models on startup (async to avoid blocking)
+// Train models on startup (async to avoid blocking), including PiVerifier learning
 Promise.all([
   aiEngine.trainModel().catch(logger.error),
   marketPredictor.trainOnHistoricalData().catch(logger.error),
-  dynamicPricing.trainPricingModel([]).catch(logger.error)  // Pass empty array or load from DB
-]).then(() => logger.info('All AI models initialized and trained'));
+  dynamicPricing.trainPricingModel([]).catch(logger.error),  // Pass empty array or load from DB
+  piVerifier.confirmWithOracle('init').catch(logger.error)  // Initialize oracle for PiVerifier
+]).then(() => logger.info('All AI models, including PiVerifier, initialized and trained autonomously'));
 
 // Middleware with config
 app.use(helmet());
@@ -88,7 +91,7 @@ app.use('/wallet', walletRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/admin', adminRoutes);  // Admin routes
-app.use('/ai', aiRoutes);  // New AI routes
+app.use('/ai', aiRoutes);  // AI routes including PiVerifier
 app.use(express.static('public')); // Serve frontend
 
 // Metrics endpoint for Prometheus
@@ -99,7 +102,7 @@ if (config.monitoring) {
   });
 }
 
-// Socket.io for real-time with metrics
+// Socket.io for real-time with metrics and autonomous monitoring
 io.on('connection', (socket) => {
   logger.info('User connected via socket');
   userGauge.inc();  // Increment active users
@@ -107,10 +110,23 @@ io.on('connection', (socket) => {
   socket.on('sendTip', (data) => {
     io.to(data.toUser).emit('tipReceived', data);
     transactionCounter.inc({ type: 'tip' });  // Track transactions
+    // Autonomous monitoring: Verify Pi Coins in real-time
+    piVerifier.monitorTransactions([{ piId: data.piId || 'unknown', origin: data.origin || 'p2p', history: data.history || [] }]);
+  });
+  socket.on('transaction', async (data) => {
+    // Hook for autonomous Pi regulation monitoring
+    await piVerifier.monitorTransactions([data]);
+    logger.info('Autonomous Pi monitoring triggered via socket');
   });
   socket.on('disconnect', () => userGauge.dec());  // Decrement on disconnect
 });
 
 // DB Connection with config
 mongoose.connect(config.mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() =>
+  .then(() => logger.info('MongoDB connected'))
+  .catch(err => logger.error('MongoDB connection error:', err));
+
+const PORT = config.port;
+server.listen(PORT, () => logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode with super-advanced autonomous AI for Pi Coin regulation enabled`));
+
+module.exports = { app, server, io, aiEngine, nlpEngine, chatbot, marketPredictor, dynamicPricing, piVerifier };
