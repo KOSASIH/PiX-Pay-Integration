@@ -15,8 +15,8 @@
     .dark-mode .section { background: #1e1e1e; color: #ffffff; }
     button { padding: 12px 18px; background: linear-gradient(45deg, #1da1f2, #0d95e8); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: background 0.3s; }
     button:hover { background: linear-gradient(45deg, #0d95e8, #1da1f2); }
-    input, select { padding: 10px; margin: 5px; width: calc(100% - 20px); max-width: 300px; border: 1px solid #ddd; border-radius: 5px; }
-    .dark-mode input, .dark-mode select { background: #333; color: #fff; border-color: #555; }
+    input, select, textarea { padding: 10px; margin: 5px; width: calc(100% - 20px); max-width: 300px; border: 1px solid #ddd; border-radius: 5px; }
+    .dark-mode input, .dark-mode select, .dark-mode textarea { background: #333; color: #fff; border-color: #555; }
     #notifications { position: fixed; top: 10px; right: 10px; width: 320px; background: #e8f5e8; border: 1px solid #4caf50; padding: 15px; border-radius: 8px; display: none; z-index: 1000; }
     .dark-mode #notifications { background: #2e7d32; color: #fff; }
     .hidden { display: none; }
@@ -26,7 +26,9 @@
     .chart-container { width: 100%; height: 300px; margin: 20px 0; }
     .qr-code { text-align: center; margin: 20px 0; }
     .toggle { position: fixed; top: 10px; left: 10px; }
-    @media (max-width: 768px) { .section { padding: 15px; } input { width: 100%; } #notifications { width: 90%; } }
+    .chat-history { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+    .dark-mode .chat-history { border-color: #555; background: #333; }
+    @media (max-width: 768px) { .section { padding: 15px; } input, textarea { width: 100%; } #notifications { width: 90%; } }
   </style>
 </head>
 <body>
@@ -108,6 +110,37 @@
       <h3>Transaction History</h3>
       <div id="history"></div>
     </div>
+
+    <!-- AI Features Section -->
+    <div id="ai-features" class="section hidden">
+      <h2>Super-Advanced AI Features</h2>
+      <div>
+        <h3>Sentiment Analysis</h3>
+        <textarea id="sentimentText" placeholder="Enter text (e.g., tweet content) for sentiment analysis" rows="3"></textarea>
+        <button onclick="analyzeSentiment()">Analyze Sentiment</button>
+        <div id="sentimentResult"></div>
+      </div>
+      <div>
+        <h3>AI Chatbot</h3>
+        <div id="chatHistory" class="chat-history"></div>
+        <input type="text" id="chatMessage" placeholder="Ask the AI anything about PiX Pay">
+        <button onclick="sendChat()">Send</button>
+        <button onclick="clearChat()">Clear Chat</button>
+      </div>
+      <div>
+        <h3>Market Trend Prediction</h3>
+        <button onclick="getMarketTrend()">Predict Pi Market Trend</button>
+        <div id="marketTrend"></div>
+      </div>
+      <div>
+        <h3>Dynamic Pricing</h3>
+        <input type="number" id="engagement" placeholder="Engagement Score (0-1000)" step="1">
+        <input type="number" id="timeOfDay" placeholder="Time of Day (0-23)" step="1">
+        <input type="number" id="demand" placeholder="Demand Level (0-1)" step="0.1">
+        <button onclick="getDynamicPrice()">Calculate Dynamic Price</button>
+        <div id="dynamicPrice"></div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
@@ -116,7 +149,7 @@
     const socket = io('http://localhost:3000');
     let token = localStorage.getItem('token');
     let userId;
-    let isAdmin = false; // Set based on user role
+    let isAdmin = false;
 
     // DOM Elements
     const body = document.body;
@@ -126,6 +159,7 @@
     const twoFADiv = document.getElementById('2fa');
     const walletDiv = document.getElementById('wallet');
     const paymentsDiv = document.getElementById('payments');
+    const aiFeaturesDiv = document.getElementById('ai-features');
     const notifications = document.getElementById('notifications');
     const balanceSpan = document.getElementById('balance');
     const userNameSpan = document.getElementById('userName');
@@ -200,7 +234,7 @@
         token = data.token;
         localStorage.setItem('token', token);
         userId = data.user.id;
-        isAdmin = data.user.username === 'admin'; // Check role
+        isAdmin = data.user.username === 'admin';
         showDashboard();
         loadUserData();
         loadCharts();
@@ -217,6 +251,7 @@
       twoFADiv.classList.remove('hidden');
       walletDiv.classList.remove('hidden');
       paymentsDiv.classList.remove('hidden');
+      aiFeaturesDiv.classList.remove('hidden');
       if (isAdmin) adminPanel.classList.remove('hidden');
       socket.emit('join', userId);
     }
@@ -253,10 +288,12 @@
     }
 
     async function predictTrends() {
-      const res = await fetch('/ai/predict', { headers: { Authorization: `Bearer ${token}` } }); // Assume new endpoint
+      const res = await fetch('/ai/predict', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
         showNotification(`Predicted next tip: ${data.prediction} Pi`);
+      } else {
+        showNotification('Prediction failed', 'error');
       }
     }
 
@@ -266,14 +303,14 @@
       const balanceData = await balanceRes.json();
       new Chart(document.getElementById('balanceChart'), {
         type: 'line',
-        data: { labels: balanceData.labels, datasets: [{ label: 'Pi Balance', data: balanceData.values, borderColor: '#1da1f2' }] }
+        data: { labels: balanceData.labels || ['Day1', 'Day2', 'Day3'], datasets: [{ label: 'Pi Balance', data: balanceData.values || [0.1, 0.2, 0.15], borderColor: '#1da1f2' }] }
       });
 
       const txRes = await fetch('/analytics/transactions', { headers: { Authorization: `Bearer ${token}` } });
       const txData = await txRes.json();
       new Chart(document.getElementById('transactionChart'), {
         type: 'bar',
-        data: { labels: txData.labels, datasets: [{ label: 'Transactions', data: txData.values, backgroundColor: '#4caf50' }] }
+        data: { labels: txData.labels || ['Tx1', 'Tx2', 'Tx3'], datasets: [{ label: 'Transactions', data: txData.values || [1, 2, 3], backgroundColor: '#4caf50' }] }
       });
     }
 
@@ -317,6 +354,8 @@
       const data = await res.json();
       if (res.ok) {
         suggestionSpan.textContent = `Suggested: ${data.suggestion} Pi`;
+      } else {
+        showNotification('Suggestion failed', 'error');
       }
     }
 
@@ -329,57 +368,4 @@
           amount: parseFloat(document.getElementById('amount').value),
           tweetId: document.getElementById('tweetId').value
         })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showNotification('Tip sent!');
-        loadHistory();
-        loadUserData();
-        loadCharts();
-      } else {
-        showNotification(data.error, 'error');
-      }
-    }
-
-    async function loadHistory() {
-      const res = await fetch('/payments/history', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (res.ok) {
-        historyDiv.innerHTML = data.map(tx => `<div class="transaction">${tx.amount} Pi to ${tx.toUser.username} - ${tx.status}</div>`).join('');
-      }
-    }
-
-    // Admin Functions
-    async function viewUsers() {
-      const res = await fetch('/admin/users', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (res.ok) {
-        showNotification(`Users: ${data.length}`);
-      }
-    }
-
-    async function bulkTip() {
-      // Implement bulk tip UI
-      showNotification('Bulk tip feature coming soon!');
-    }
-
-    // Real-time Notifications
-    socket.on('tipReceived', (data) => {
-      showNotification(`You received a tip: ${data.amount} Pi!`);
-      loadUserData();
-      loadCharts();
-    });
-
-    // Utility
-    function showNotification(message, type = 'success') {
-      notifications.textContent = message;
-      notifications.style.display = 'block';
-      notifications.style.background = type === 'error' ? '#ffebee' : '#e8f5e8';
-      setTimeout(() => notifications.style.display = 'none', 5000);
-    }
-
-    // Load on init
-    if (token) loadHistory();
-  </script>
-</body>
-        </html>
+     
