@@ -15,6 +15,10 @@ A repo for integrating Pi Network's Pi Coin with Twitter (X) APIs, focusing on w
 [![TensorFlow.js](https://img.shields.io/badge/TensorFlow.js-4.0+-FF6F00?style=flat-square&logo=tensorflow)](https://www.tensorflow.org/js)
 [![Chart.js](https://img.shields.io/badge/Chart.js-4.0+-FF6384?style=flat-square&logo=chart.js)](https://www.chartjs.org/)
 
+[![Docker](https://img.shields.io/badge/Docker-24+-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.27+-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-2.40+-E6522C?style=flat-square&logo=prometheus)](https://prometheus.io/)
+
 # PiX-Pay-Integration
 
 ## Description
